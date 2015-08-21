@@ -1,0 +1,99 @@
+---
+title: "Human Activity Recognition"
+author: "M.P."
+date: "Tuesday, August 11, 2015"
+output: pdf_document
+---
+##Human Activity Recognition##
+####using an on-body sensing approach####
+
+###Executive Summary###
+this study investigates three aspects that pertain to qualitative activity recognition: the problem of specifying correct execution, the automatic and robust detection of execution mistakes, and how to provide feedback on the quality of execution to the user. An on-body sensing approach was used.
+The results of this study was the development of an machine learning algorithm that will provde feedback on quality of execution. The model had an accuracy of 97%.
+
+###Scope###
+For this human activity recognition research, six participants (male, between 20-28 years of age) were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). The sensors were located on the particpants upper arm (bicep), forearm, belt, and dumbell. This human activity recognition research predicts "which" activity was performed at a specific point in time.
+
+The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
+
+The dataset used in this study investigates three aspects that pertain to qualitative activity recognition: the problem of specifying correct execution, the automatic and robust detection of execution mistakes, and how to provide feedback on the quality of execution to the user. An on-body sensing approach was used.
+
+Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six  participants with little weight lifting experience. All participants simulated the mistakes in a safe/controlled manner using a dumbbell that weighed 1.25kg.
+
+
+###Download the data###
+```{r}
+options(warn=-1)##supress warnings.
+library(caret)
+library(randomForest)
+if (!file.exists("MachineLearning")){
+        dir.create("MachineLearning")
+}
+setwd("~/MachineLearning")
+pmltrain <- read.csv("./MachineLearning/pml-training.csv")
+pmltest <- read.csv("./MachineLearning/pml-testing.csv")
+```
+####Explore and Clean the data####
+Used *summary* and *str* to explore the data sets. There are some columns that have a large number of N/A's, or division by 0 errors. There are other columns that do not seem to be necessary as predictors for the prediciton model (columns 1 through 7). I will delete these colomuns. 
+
+```{r}
+dim(pmltrain)
+dim(pmltest)
+```
+The training data set has 19622 rows and 160 columns before cleaning.  
+The testing data set has 20 rows and 160 columns before cleaning.  
+
+Both the training and the test data sets were cleaned to remove the columns that were not needed as described above.
+```{r, echo=FALSE}
+pmltrain[pmltrain == ""] <- NA ## convert blank cells to NA
+pmltest[pmltest == ""] <- NA ## convert blank cells to NA
+train1 <- pmltrain[,colSums(is.na(pmltrain)) ==0]## remove columns that contain NA
+test1 <- pmltest[,colSums(is.na(pmltest)) == 0]## remove columns that contain NA
+train1<- train1[,-(1:7),drop=FALSE]## remove  first 7 columns
+test1<- test1[,-(1:7),drop=FALSE]## remove  first 7 columns
+test1[53]<- NULL## remove problem_id column
+dim(train1)
+dim(test1)
+```
+The training data set has 19622 rows and 53 columns after cleaning.  
+The testing data set has 20 rows and 52 columns after cleaning.   
+  
+####Testing for correlations####
+```{r}
+train1cor<-data.frame(round(cor(train1[1:52]), 2))
+hightrain1cor <- which(row(train1cor) < col(train1cor) & train1cor>.8, arr.ind=TRUE)[,"col"]
+```  
+
+Serval predictors were found to be highly correlated.
+
+####Splitting the training data set into a training (70%), and  test data sets.####
+```{r}
+set.seed(88)
+train2= createDataPartition(y=train1$classe, p = .70, list = FALSE)
+training = train1[ train2,]
+testing = train1[-train2,]
+```
+####Cross Validaton####
+Cross validation was determined by applying the fitmodelto the testing data.  Additionally, Cross validation is accomplished automatically when using random forest, so independent cross validation is not required.  Resampling of the data was done using backtesting.
+
+
+
+####Preprocess the training data set with PCA and fit a model using Random Forest.#### 
+```{r}
+set.seed(889)
+modelfit <- train(training$classe~.,data=training, preProcess="pca")##Preprocessing with PCA and training with Random forest took over an hour.
+testing1 <- testing[,-53]##removeing classe from the data.
+predicttesting<- predict(modelfit, testing1)
+confusionmatrix <-confusionMatrix(predicttesting, testing$classe)
+confusionmatrix
+plot(confusionmatrix[[2]], main="Random Forest Model PreProcessed with PCA")
+```  
+The model had an Accuracy of 97%.   
+  
+####Out-of-sample error####
+
+The out-of-sample error rate was .03.
+The out of sample error is determined from applying the prediction model to the training partitioned data set.
+
+###References###
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
